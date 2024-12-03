@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg width="250mm" height="175mm" viewBox="0 0 250 175" version="1.1" id="svg5" xmlns="http://www.w3.org/2000/svg" xmlns:svg="http://www.w3.org/2000/svg">
+<g id="checkers">
+<rect width="25" height="25" x="0" y="0"></rect>
+<rect width="25" height="25" x="50" y="0"></rect>
+<rect width="25" height="25" x="100" y="0"></rect>
+<rect width="25" height="25" x="150" y="0"></rect>
+<rect width="25" height="25" x="200" y="0"></rect>
+<rect width="25" height="25" x="25" y="25"></rect>
+<rect width="25" height="25" x="75" y="25"></rect>
+<rect width="25" height="25" x="125" y="25"></rect>
+<rect width="25" height="25" x="175" y="25"></rect>
+<rect width="25" height="25" x="225" y="25"></rect>
+<rect width="25" height="25" x="0" y="50"></rect>
+<rect width="25" height="25" x="50" y="50"></rect>
+<rect width="25" height="25" x="100" y="50"></rect>
+<rect width="25" height="25" x="150" y="50"></rect>
+<rect width="25" height="25" x="200" y="50"></rect>
+<rect width="25" height="25" x="25" y="75"></rect>
+<rect width="25" height="25" x="75" y="75"></rect>
+<rect width="25" height="25" x="125" y="75"></rect>
+<rect width="25" height="25" x="175" y="75"></rect>
+<rect width="25" height="25" x="225" y="75"></rect>
+<rect width="25" height="25" x="0" y="100"></rect>
+<rect width="25" height="25" x="50" y="100"></rect>
+<rect width="25" height="25" x="100" y="100"></rect>
+<rect width="25" height="25" x="150" y="100"></rect>
+<rect width="25" height="25" x="200" y="100"></rect>
+<rect width="25" height="25" x="25" y="125"></rect>
+<rect width="25" height="25" x="75" y="125"></rect>
+<rect width="25" height="25" x="125" y="125"></rect>
+<rect width="25" height="25" x="175" y="125"></rect>
+<rect width="25" height="25" x="225" y="125"></rect>
+<rect width="25" height="25" x="0" y="150"></rect>
+<rect width="25" height="25" x="50" y="150"></rect>
+<rect width="25" height="25" x="100" y="150"></rect>
+<rect width="25" height="25" x="150" y="150"></rect>
+<rect width="25" height="25" x="200" y="150"></rect>
+
+</g>
+</svg>
