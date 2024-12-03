@@ -12,7 +12,7 @@ def calibrate(
     images_folder_path: str = "./calibration_photos/",
     calibration_filename: str = "calibration.pkl",
     silent: bool = True,
-):
+) -> np.ndarray:
     folder_path = Path(images_folder_path)
     if not folder_path.exists():
         raise FileNotFoundError(f"Folder {images_folder_path} not found")
@@ -86,6 +86,5 @@ def calibrate(
     plt.show()
 
     return mtx, dist
-
 
 calibrate(calibration_filename="calibration.pkl", silent=True)
