@@ -37,20 +37,28 @@ def navigation_decision(
     safety_status = {"left": True, "center": True, "right": True}
 
     for i in range(detections.shape[0]):
-        x_center = (detections[i][0] + detections[i][2]) / 2
+        x1, x2 = (detections[i][0], detections[i][2])
+        frame = frame_width / total_regions
         distance = distances[i][1]
+        if distance < 0 or distance > threshold_distance:
+            continue
 
         # Map object location to frame sections
-        if x_center <= frame_width / total_regions:
-            if distance < threshold_distance:
+        if x1 <= frame and x2 <= frame:
+            safety_status["left"] = False
+        elif x2 <= 2 * frame:
+            safety_status["center"] = False
+            if x1 <= frame:
                 safety_status["left"] = False
-        elif x_center <= 2 * frame_width / total_regions:
-            if distance < threshold_distance:
-                safety_status["center"] = False
         else:
-            if distance < threshold_distance:
-                safety_status["right"] = False
+            safety_status["right"] = False
+            if x1 <= frame:
+                safety_status["left"] = False
+                safety_status["center"] = False
+            elif x1 <= 2 * frame:
+                safety_status["center"] = False
 
+    print("Safety status: ", safety_status)
     # Determine navigation based on safety status
     if (
         safety_status["left"]
@@ -73,7 +81,7 @@ def navigation_decision(
     elif safety_status["left"] and safety_status["right"]:
         return "Move to the side with more space."
     else:
-        return "Stop and turn."
+        return "Stop and turn. No way ahead."
 
 
 def draw_guidance(frame: np.ndarray, decision: str) -> np.ndarray:
@@ -93,8 +101,8 @@ def draw_guidance(frame: np.ndarray, decision: str) -> np.ndarray:
         f"Decision: {decision}",
         text_position,
         cv2.FONT_HERSHEY_SIMPLEX,
-        1,
-        (0, 255, 0),
+        0.7,
+        (255, 0, 0),
         2,
     )
     return frame
@@ -106,6 +114,7 @@ def navigation(
     known_object_width_meters: Dict[str, float],
     total_regions: int,
     threshold_distance: float,
+    shaded_regions: bool = False,
 ):
     """
     Main navigation function for detecting objects, estimating distances, and guiding the user.
@@ -157,14 +166,14 @@ def navigation(
                 y1 = int(box[1] - box[3] / 2)
                 x2 = int(box[0] + box[2] / 2)
                 y2 = int(box[1] + box[3] / 2)
-                cv2.rectangle(img_with_boxes, (x1, y1), (x2, y2), (0, 255, 255), 2)
+                cv2.rectangle(img_with_boxes, (x1, y1), (x2, y2), (0, 0, 255), 2)
                 cv2.putText(
                     img_with_boxes,
                     f"{label}: {distance_meters:.2f}m",
                     (x1, y1 - 10),
                     cv2.FONT_HERSHEY_SIMPLEX,
                     0.7,
-                    (0, 255, 255),
+                    (0, 0, 255),
                     2,
                 )
 
@@ -180,6 +189,47 @@ def navigation(
 
             # Overlay decision on the frame
             frame_with_guidance = draw_guidance(img_with_boxes, decision)
+
+            if shaded_regions:
+                # Shading of regions
+                _, width, _ = frame.shape
+                region_width = width // 3
+                # Define color shades for the regions (BGR format)
+                left_color = (0, 0, 255)  # Red
+                center_color = (0, 255, 0)  # Green
+                right_color = (255, 0, 0)  # Blue
+
+                # Define alpha for blending (opacity: 0 = fully transparent, 1 = fully opaque)
+                alpha = 0.4  # You can adjust this value (e.g., 0.4 for 40% opacity)
+
+                # Create an overlay for the frame with the same dimensions as the original frame
+                overlay = frame_with_guidance.copy()
+
+                # Apply opacity to each region by blending
+                # Top region (apply red shade with opacity)
+                overlay_left = overlay[:, :region_width].copy()
+                overlay_left[:, :] = left_color  # Assign red to the region
+                frame[:, :region_width] = cv2.addWeighted(
+                    overlay_left, alpha, frame[:, :region_width], 1 - alpha, 0
+                )
+
+                # Middle region (apply green shade with opacity)
+                overlay_center = overlay[:, region_width : 2 * region_width].copy()
+                overlay_center[:, :] = center_color  # Assign green to the region
+                frame[:, region_width : 2 * region_width] = cv2.addWeighted(
+                    overlay_center,
+                    alpha,
+                    frame[:, region_width : 2 * region_width],
+                    1 - alpha,
+                    0,
+                )
+
+                # Bottom region (apply blue shade with opacity)
+                overlay_right = overlay[:, 2 * region_width :].copy()
+                overlay_right[:, :] = right_color  # Assign blue to the region
+                frame[:, 2 * region_width :] = cv2.addWeighted(
+                    overlay_right, alpha, frame[:, 2 * region_width :], 1 - alpha, 0
+                )
 
             # Display the frame
             cv2.imshow("Navigation Feed", frame_with_guidance)
@@ -212,4 +262,5 @@ navigation(
     known_object_width_meters=known_object_width_meters,
     total_regions=total_regions,
     threshold_distance=threshold_distance,
+    shaded_regions=True,
 )
