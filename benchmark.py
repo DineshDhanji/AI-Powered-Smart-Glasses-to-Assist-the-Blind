@@ -1,6 +1,14 @@
 from ultralytics import YOLO
 
-# Load a YOLO11n PyTorch model
+def generate_benchmarks(model_path: str) -> None:
+    print("Working on model:", model_path)
+    try:
+        model = YOLO(model_path)
+        results = model.benchmark(data="coco8.yaml", imgsz=640)
+        print(f"Benchmark for {model_path} completed.")
+    except Exception as e:
+        print(f"Error with model {model_path}: {e}")
+
 model_names = [
     "yolov8n.pt",
     "yolov8s.pt",
@@ -15,8 +23,5 @@ model_names = [
 model_folder = "./models"
 
 for model_name in model_names:
-    print("Working on model:", model_name)
-    model = YOLO(f"{model_folder}/model_name")
-
-    # Benchmark YOLO11n speed and accuracy on the COCO8 dataset for all all export formats
-    results = model.benchmark(data="coco8.yaml", imgsz=640)
+    model_path = f"{model_folder}/{model_name}"
+    generate_benchmarks(model_path)

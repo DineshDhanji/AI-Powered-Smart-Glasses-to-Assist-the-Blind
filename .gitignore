@@ -16,3 +16,8 @@ ipython_config.py
 
 # pyenv
 .python-version
+
+# benchmark trash
+models/
+runs/
+calibration*.npy
