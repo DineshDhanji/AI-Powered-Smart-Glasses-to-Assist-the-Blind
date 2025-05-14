@@ -72,7 +72,7 @@ class Facial_Recognition:
         else:
             final_prediction = "Unknown"
         message = f"Original Prediction: {true_prediction}\nConfidence: {confidence:.2f}%\nFinal Prediction: {final_prediction}"
-        return message
+        return message, true_prediction
 
     def identify_person(self, person_image):
         color_face = self.detect_face(person_image)
@@ -82,10 +82,10 @@ class Facial_Recognition:
         epp_gray_face = self.apply_eppisoidal(gray_face)
         epp_lbp_gray_face = self.apply_lbp_resize(epp_gray_face)
         scaled_image = self.scale_image(epp_lbp_gray_face)
-        prediction = self.predict_image(scaled_image)
-        return prediction
+        prediction, person = self.predict_image(scaled_image)
+        return prediction, person
 
-    def initialize_recognition(self, yolo_model):
+    def initialize_recognition(self, yolo_model, tts_engine):
         # Open the camera feed
         camera = cv2.VideoCapture(0)
         if not camera.isOpened():
@@ -142,11 +142,18 @@ class Facial_Recognition:
                                 #     "Cropped Person", cropped_person
                                 # )  # Display the cropped image
 
-                                result = self.identify_person(
+                                result, _ = self.identify_person(
                                     cropped_person
                                 )  # Call face recognition pipeline
                                 print("Prediction Result:", result)
-
+                                if _ != "Unknown":
+                                    tts_engine.speak(
+                                        f"Found {_} with confidence {result}"
+                                    )
+                                else:
+                                    tts_engine.speak(
+                                        "Unknown person detected, please verify."
+                                    )
                     # Wait for user input before continuing
                     cv2.waitKey(
                         500

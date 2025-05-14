@@ -4,9 +4,13 @@ from constants import *
 from utils import load_model
 from navigation import Navigation_Module
 from facial_recognition import Facial_Recognition
+from tts import TTS_Engine
 
 # Load the YOLO model
 model = load_model(model_path)
+
+# Initialize the TTS engine
+tts_engine = TTS_Engine()
 
 
 def center_window(window, width, height):
@@ -34,7 +38,7 @@ def run_recognition(root, facial_recognition_module):
     root.withdraw()  # Hide the main window
 
     facial_recognition_module.initialize_recognition(
-        yolo_model=model,
+        yolo_model=model, tts_engine=tts_engine
     )
 
     root.deiconify()  # Show again after navigation module ends
