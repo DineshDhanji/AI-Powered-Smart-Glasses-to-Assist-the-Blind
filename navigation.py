@@ -1,17 +1,16 @@
-import cv2
 import numpy as np
-from ultralytics import YOLO
+import cv2
+
 from typing import Dict, List, Tuple
+
 from utils import (
     load_camera_calibration,
+    load_model,
     detect_objects_with_yolo,
     calculate_distance_to_object,
 )
-
-# Constants
-ESC_KEY = 27  # ASCII for the ESC key
-DEFAULT_FRAME_WIDTH = 640  # Default camera frame width
-DEFAULT_FRAME_HEIGHT = 480  # Default camera frame height
+from constants import *
+from logger import logger
 
 
 def navigation_decision(
@@ -59,6 +58,7 @@ def navigation_decision(
                 safety_status["center"] = False
 
     print("Safety status: ", safety_status)
+
     # Determine navigation based on safety status
     if (
         safety_status["left"]
@@ -108,6 +108,69 @@ def draw_guidance(frame: np.ndarray, decision: str) -> np.ndarray:
     return frame
 
 
+def draw_shaded_regions(frame: np.ndarray, frame_with_guidance: np.ndarray) -> None:
+    """
+    Applies shaded regions with specified colors and opacity to the input frame.
+    This function divides the input frame into three vertical regions (left, center, and right),
+    and overlays each region with a specific color (red, green, and blue respectively) with a
+    specified opacity. The shading is applied directly to the input frame.
+    Args:
+        frame (np.ndarray): The original frame to which the shaded regions will be applied.
+                            This array is modified in place.
+        frame_with_guidance (np.ndarray): A copy of the original frame used as a base for
+                                          creating the overlay.
+    Returns:
+        None: The function modifies the `frame` in place and does not return any value.
+    Notes:
+        - The colors for the regions are defined in BGR format:
+            - Left region: Red (0, 0, 255)
+            - Center region: Green (0, 255, 0)
+            - Right region: Blue (255, 0, 0)
+        - The opacity of the overlay is controlled by the `alpha` parameter, which is set to 0.4
+          by default (40% opacity).
+        - The frame is divided into three equal vertical regions based on its width.
+    """
+    # Shading of regions
+    _, width, _ = frame.shape
+    region_width = width // 3
+    # Define color shades for the regions (BGR format)
+    left_color = (0, 0, 255)  # Red
+    center_color = (0, 255, 0)  # Green
+    right_color = (255, 0, 0)  # Blue
+
+    # Define alpha for blending (opacity: 0 = fully transparent, 1 = fully opaque)
+    alpha = 0.4  # You can adjust this value (e.g., 0.4 for 40% opacity)
+
+    # Create an overlay for the frame with the same dimensions as the original frame
+    overlay = frame_with_guidance.copy()
+
+    # Apply opacity to each region by blending
+    # Top region (apply red shade with opacity)
+    overlay_left = overlay[:, :region_width].copy()
+    overlay_left[:, :] = left_color  # Assign red to the region
+    frame[:, :region_width] = cv2.addWeighted(
+        overlay_left, alpha, frame[:, :region_width], 1 - alpha, 0
+    )
+
+    # Middle region (apply green shade with opacity)
+    overlay_center = overlay[:, region_width : 2 * region_width].copy()
+    overlay_center[:, :] = center_color  # Assign green to the region
+    frame[:, region_width : 2 * region_width] = cv2.addWeighted(
+        overlay_center,
+        alpha,
+        frame[:, region_width : 2 * region_width],
+        1 - alpha,
+        0,
+    )
+
+    # Bottom region (apply blue shade with opacity)
+    overlay_right = overlay[:, 2 * region_width :].copy()
+    overlay_right[:, :] = right_color  # Assign blue to the region
+    frame[:, 2 * region_width :] = cv2.addWeighted(
+        overlay_right, alpha, frame[:, 2 * region_width :], 1 - alpha, 0
+    )
+
+
 def navigation(
     calibration_file: str,
     model_path: str,
@@ -115,6 +178,7 @@ def navigation(
     total_regions: int,
     threshold_distance: float,
     shaded_regions: bool = False,
+    render: bool = False,
 ):
     """
     Main navigation function for detecting objects, estimating distances, and guiding the user.
@@ -128,33 +192,46 @@ def navigation(
     """
     try:
         # Load camera calibration data
-        cam_matrix, dist_coeffs = load_camera_calibration(calibration_file)
+        cam_matrix, _ = load_camera_calibration(calibration_file)
 
         # Open the camera feed
         camera = cv2.VideoCapture(0)
         if not camera.isOpened():
             raise IOError("Error opening the camera.")
 
-        print("Camera opened successfully.")
+        logger.info("Camera opened successfully.")
+
+        # Load the YOLO model
+        model = load_model(model_path)
 
         while True:
             ret, frame = camera.read()
             if not ret:
-                print("Failed to grab frame.")
+                logger.error("Failed to grab frame.")
                 break
 
             # Detect objects using YOLO
             boxes, labels, confidences, class_ids, img_with_boxes, detections = (
-                detect_objects_with_yolo(frame, model_path)
+                detect_objects_with_yolo(image=frame, model=model)
             )
+
             if len(boxes) == 0:
-                print("No objects detected.")
+                logger.debug("No objects detected.")
                 continue
 
             # Calculate distances to detected objects
             distances = []
-            for i, box in enumerate(boxes):
-                label = labels[class_ids[i]]
+
+            for i in range(len(boxes)):
+                box = boxes[i]
+
+                try:
+                    class_id = int(class_ids[i])
+                    label = labels[class_id]
+                except IndexError as e:
+                    logger.error(f"Index error on class_id or label at index {i}: {e}")
+                    continue
+
                 object_width_pixels = box[2]  # Detected object width in pixels
                 distance_meters = calculate_distance_to_object(
                     object_width_pixels, known_object_width_meters, cam_matrix, label
@@ -185,62 +262,27 @@ def navigation(
                 total_regions=total_regions,
                 threshold_distance=threshold_distance,
             )
-            print("Navigation decision: ", decision)
+            logger.debug("Navigation decision: ", decision)
 
-            # Overlay decision on the frame
-            frame_with_guidance = draw_guidance(img_with_boxes, decision)
+            if render:
+                # Overlay decision on the frame
+                frame_with_guidance = draw_guidance(img_with_boxes, decision)
 
-            if shaded_regions:
-                # Shading of regions
-                _, width, _ = frame.shape
-                region_width = width // 3
-                # Define color shades for the regions (BGR format)
-                left_color = (0, 0, 255)  # Red
-                center_color = (0, 255, 0)  # Green
-                right_color = (255, 0, 0)  # Blue
+                if shaded_regions:
+                    draw_shaded_regions(
+                        frame=frame, frame_with_guidance=frame_with_guidance
+                    )
 
-                # Define alpha for blending (opacity: 0 = fully transparent, 1 = fully opaque)
-                alpha = 0.4  # You can adjust this value (e.g., 0.4 for 40% opacity)
-
-                # Create an overlay for the frame with the same dimensions as the original frame
-                overlay = frame_with_guidance.copy()
-
-                # Apply opacity to each region by blending
-                # Top region (apply red shade with opacity)
-                overlay_left = overlay[:, :region_width].copy()
-                overlay_left[:, :] = left_color  # Assign red to the region
-                frame[:, :region_width] = cv2.addWeighted(
-                    overlay_left, alpha, frame[:, :region_width], 1 - alpha, 0
-                )
-
-                # Middle region (apply green shade with opacity)
-                overlay_center = overlay[:, region_width : 2 * region_width].copy()
-                overlay_center[:, :] = center_color  # Assign green to the region
-                frame[:, region_width : 2 * region_width] = cv2.addWeighted(
-                    overlay_center,
-                    alpha,
-                    frame[:, region_width : 2 * region_width],
-                    1 - alpha,
-                    0,
-                )
-
-                # Bottom region (apply blue shade with opacity)
-                overlay_right = overlay[:, 2 * region_width :].copy()
-                overlay_right[:, :] = right_color  # Assign blue to the region
-                frame[:, 2 * region_width :] = cv2.addWeighted(
-                    overlay_right, alpha, frame[:, 2 * region_width :], 1 - alpha, 0
-                )
-
-            # Display the frame
-            cv2.imshow("Navigation Feed", frame_with_guidance)
+                # Display the frame
+                cv2.imshow("Navigation Feed", frame_with_guidance)
 
             # Exit if ESC key is pressed
             if cv2.waitKey(1) & 0xFF == ESC_KEY:
-                print("Escape key pressed. Exiting...")
+                logger.debug("Escape key pressed. Exiting...")
                 break
 
     except Exception as e:
-        print(f"Error: {e}")
+        logger.error(f"Error: {e}")
 
     finally:
         # Release the camera and close windows
@@ -249,18 +291,12 @@ def navigation(
         cv2.destroyAllWindows()
 
 
-# Configuration
-calibration_file = "calibration.pkl"
-model_path = "./models/yolo11n.pt"
-known_object_width_meters = {"chair": 0.4064, "person": 0.4064}
-total_regions = 3
-threshold_distance = 3.0
-
 navigation(
     calibration_file=calibration_file,
     model_path=model_path,
     known_object_width_meters=known_object_width_meters,
-    total_regions=total_regions,
-    threshold_distance=threshold_distance,
+    total_regions=TOTAL_REGIONS,
+    threshold_distance=THRESHOLD_DISTANCE,
     shaded_regions=True,
+    render=True,
 )
