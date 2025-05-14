@@ -1,6 +1,7 @@
 # Paths
 calibration_file = "./calibration.pkl"
 model_path = "./models/yolo11n.pt"
+facial_recog_model_path = "./models/FYP_FR_Model_v1.keras"
 
 # Constants
 ## Main Interface Window
@@ -18,6 +19,11 @@ MODEL_CONFIDENCE_THRESHOLD = 0.5
 ## Navigation
 TOTAL_REGIONS = 3
 THRESHOLD_DISTANCE = 3.0  # Threshold distance for navigation decision (in meters)
+
+## TTS 
+VOICE_ID = 1
+VOICE_RATE = 250  
+VOICE_VOLUME = 1.0  # Default volume level (0.0 to 1.0)
 
 # Configuration
 known_object_width_meters = {"chair": 0.4064, "person": 0.4064}

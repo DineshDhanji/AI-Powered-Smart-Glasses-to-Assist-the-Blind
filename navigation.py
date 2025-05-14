@@ -5,7 +5,6 @@ from typing import Dict, List, Tuple
 
 from utils import (
     load_camera_calibration,
-    load_model,
     detect_objects_with_yolo,
     calculate_distance_to_object,
 )
@@ -191,6 +190,7 @@ class Navigation_Module:
         self,
         shaded_regions: bool = False,
         render: bool = False,
+        model: str = None,
     ):
         """
         Main navigation function for detecting objects, estimating distances, and guiding the user.
@@ -212,9 +212,6 @@ class Navigation_Module:
                 raise IOError("Error opening the camera.")
 
             logger.info("Camera opened successfully.")
-
-            # Load the YOLO model
-            model = load_model(model_path)
 
             while True:
                 ret, frame = camera.read()
