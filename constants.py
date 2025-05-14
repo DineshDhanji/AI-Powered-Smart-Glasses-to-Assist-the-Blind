@@ -3,11 +3,15 @@ calibration_file = "./calibration.pkl"
 model_path = "./models/yolo11n.pt"
 
 # Constants
+## Window
 ESC_KEY = 27  # ASCII for the ESC key
 DEFAULT_FRAME_WIDTH = 640  # Default camera frame width
 DEFAULT_FRAME_HEIGHT = 480  # Default camera frame height
+
+## Model
 MODEL_CONFIDENCE_THRESHOLD = 0.5
 
+## Navigation
 TOTAL_REGIONS = 3
 THRESHOLD_DISTANCE = 3.0  # Threshold distance for navigation decision (in meters)
 
