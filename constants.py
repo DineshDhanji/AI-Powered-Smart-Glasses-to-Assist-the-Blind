@@ -1,6 +1,7 @@
 # Paths
 calibration_file = "./calibration.pkl"
 model_path = "./models/yolo11n.pt"
+facial_recog_model_path = "./models/FYP_FR_Model_v1.keras"
 
 # Constants
 ## Main Interface Window

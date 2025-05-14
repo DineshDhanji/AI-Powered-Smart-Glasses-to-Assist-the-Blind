@@ -1,7 +1,12 @@
 import tkinter as tk
 from tkinter import font
-from navigation import Navigation_Module
 from constants import *
+from utils import load_model
+from navigation import Navigation_Module
+from facial_recognition import Facial_Recognition
+
+# Load the YOLO model
+model = load_model(model_path)
 
 
 def center_window(window, width, height):
@@ -19,12 +24,24 @@ def run_navigation(root, navigation_module):
     navigation_module.initiate_navigation(
         shaded_regions=True,
         render=True,
+        model=model,
+    )
+
+    root.deiconify()  # Show again after navigation module ends
+
+
+def run_recognition(root, facial_recognition_module):
+    root.withdraw()  # Hide the main window
+
+    facial_recognition_module.initialize_recognition(
+        yolo_model=model,
     )
 
     root.deiconify()  # Show again after navigation module ends
 
 
 def main():
+
     navigation_module = Navigation_Module(
         calibration_file=calibration_file,
         model_path=model_path,
@@ -32,6 +49,8 @@ def main():
         total_regions=TOTAL_REGIONS,
         threshold_distance=THRESHOLD_DISTANCE,
     )
+
+    facial_recognition_module = Facial_Recognition(model_path=facial_recog_model_path)
 
     root = tk.Tk()
     root.title("AI Assistant Control Panel")
@@ -75,7 +94,7 @@ def main():
         ("Navigation Module", lambda: run_navigation(root, navigation_module)),
         (
             "Facial Recognition Module",
-            lambda: print("Facial Recognition module placeholder."),
+            lambda: run_recognition(root, facial_recognition_module),
         ),
         (
             "Scene Description Module",
