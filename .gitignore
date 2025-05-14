@@ -21,4 +21,4 @@ ipython_config.py
 *.log
 
 # Temp files
-*temp
+temp*
