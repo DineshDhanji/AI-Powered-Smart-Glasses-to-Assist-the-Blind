@@ -3,7 +3,11 @@ calibration_file = "./calibration.pkl"
 model_path = "./models/yolo11n.pt"
 
 # Constants
-## Window
+## Main Interface Window
+WIDTH = 800  # Width of the main interface window
+HEIGHT = 600  # Height of the main interface window
+
+## Navigation Window
 ESC_KEY = 27  # ASCII for the ESC key
 DEFAULT_FRAME_WIDTH = 640  # Default camera frame width
 DEFAULT_FRAME_HEIGHT = 480  # Default camera frame height
