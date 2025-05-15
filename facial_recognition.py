@@ -3,7 +3,9 @@ import numpy as np
 import tensorflow as tf
 from skimage.feature import local_binary_pattern
 from sklearn.preprocessing import StandardScaler
+import pickle
 
+import matplotlib.pyplot as plt
 
 from logger import logger
 from utils import detect_objects_with_yolo, load_model
@@ -12,13 +14,13 @@ from utils import detect_objects_with_yolo, load_model
 class Facial_Recognition:
     def __init__(self, model_path):
         self.model = tf.keras.models.load_model(model_path)
-        self.scaler = StandardScaler()
         self.face_cascade = cv2.CascadeClassifier(
             cv2.data.haarcascades + "haarcascade_frontalface_default.xml"
         )
         self.radius = 1
         self.n_points = 8 * self.radius
         self.label_names = {0: "Aneeq", 1: "Hamza"}
+        self.padding_ratio = 0.4
 
     def detect_face(self, image):
         gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
@@ -27,15 +29,25 @@ class Facial_Recognition:
         )
         if len(faces) == 0:
             return None
+
         x, y, w, h = faces[0]
-        face = image[y : y + h, x : x + w]
+
+        pad_w = int(w * self.padding_ratio)
+        pad_h = int(h * self.padding_ratio)
+
+        x1 = max(x - pad_w, 0)
+        y1 = max(y - pad_h, 0)
+        x2 = min(x + w + pad_w, image.shape[1])
+        y2 = min(y + h + pad_h, image.shape[0])
+
+        face = image[y1:y2, x1:x2]
         return cv2.cvtColor(face, cv2.COLOR_BGR2RGB)
 
     def rgb_2_gray(self, image):
         gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
         return gray
 
-    def apply_eppisoidal(self, image):
+    def apply_ellipsoidal_mask(self, image):
         h, w = image.shape[:2]
         mask = np.zeros((h, w), dtype=np.uint8)
         center = (w // 2, h // 2)
@@ -49,41 +61,81 @@ class Facial_Recognition:
 
     def apply_lbp_resize(self, image):
         image_resized = cv2.resize(image, (48, 48))
+        image_squeeze = (image_resized.squeeze() * 255).astype(np.uint8)
         lbp = local_binary_pattern(
             image_resized, self.n_points, self.radius, method="uniform"
         )
         lbp_cropped = lbp[:46, :46]
-        lbp_cropped = lbp_cropped.astype(np.float32) / lbp_cropped.max()
-        lbp_cropped = np.expand_dims(lbp_cropped, axis=-1)
-        lbp_cropped = np.expand_dims(lbp_cropped, axis=0)
+        lbp_cropped = lbp_cropped.astype(np.float32)
         return lbp_cropped
 
-    def scale_image(self, image):
-        flat = image.reshape(1, -1)
-        scaled = self.scaler.fit_transform(flat).reshape(1, 46, 46, 1)
-        return scaled
-
     def predict_image(self, image):
-        prediction = self.model.predict(image)
-        confidence = np.max(prediction) * 100
-        true_prediction = self.label_names[np.argmax(prediction)]
-        if confidence >= 70:
-            final_prediction = true_prediction
-        else:
-            final_prediction = "Unknown"
-        message = f"Original Prediction: {true_prediction}\nConfidence: {confidence:.2f}%\nFinal Prediction: {final_prediction}"
-        return message, true_prediction
+        model = tf.keras.models.load_model("./models/FYP_FR_Model_v1.keras")
+
+        try:
+            with open("./models/feature_scaler (1).pkl", "rb") as f:
+                scaler = pickle.load(f)
+
+            scaled_image = scaler.transform(image.reshape(1, -1)).reshape(1, 46, 46, 1)
+            prediction = model.predict(scaled_image, verbose=0)
+            confidence = np.max(prediction) * 100
+            predicted_class = np.argmax(prediction)
+            true_prediction = self.label_names.get(predicted_class, "Unknown")
+
+            if confidence >= 70:
+                final_prediction = true_prediction
+            else:
+                final_prediction = "Unknown"
+
+            print(
+                f"Original Prediction: {true_prediction}\nConfidence: {confidence:.2f}%\nFinal Prediction: {final_prediction}"
+            )
+            message = f"Prediction: {final_prediction}"
+            return final_prediction
+
+        except Exception as e:
+            print(f"Error in prediction: {e}")
+            return "Error in prediction"
 
     def identify_person(self, person_image):
-        color_face = self.detect_face(person_image)
-        if color_face is None:
-            return "Face not found"
-        gray_face = self.rgb_2_gray(color_face)
-        epp_gray_face = self.apply_eppisoidal(gray_face)
-        epp_lbp_gray_face = self.apply_lbp_resize(epp_gray_face)
-        scaled_image = self.scale_image(epp_lbp_gray_face)
-        prediction, person = self.predict_image(scaled_image)
-        return prediction, person
+        img_color = self.detect_face(person_image)
+        if img_color is None:
+            print("Face not found")
+            return None
+
+        img_gray = self.rgb_2_gray(img_color)
+
+        img_masked = self.apply_ellipsoidal_mask(img_gray)
+
+        img_lbp = self.apply_lbp_resize(img_masked)
+
+        plt.figure(figsize=(7.5, 2.5))
+
+        plt.subplot(1, 4, 1)
+        plt.imshow(img_color)
+        plt.title("Detected Face")
+        plt.axis("off")
+
+        plt.subplot(1, 4, 2)
+        plt.imshow(img_gray, cmap="gray")
+        plt.title("Grayscale")
+        plt.axis("off")
+
+        plt.subplot(1, 4, 3)
+        plt.imshow(img_masked, cmap="gray")
+        plt.title("Masked")
+        plt.axis("off")
+
+        plt.subplot(1, 4, 4)
+        plt.imshow(img_lbp, cmap="gray")
+        plt.title("LBP")
+        plt.axis("off")
+
+        plt.tight_layout()
+        plt.show()
+
+        prediction = self.predict_image(img_lbp)
+        return prediction
 
     def initialize_recognition(self, yolo_model, tts_engine):
         # Open the camera feed
@@ -142,13 +194,13 @@ class Facial_Recognition:
                                 #     "Cropped Person", cropped_person
                                 # )  # Display the cropped image
 
-                                result, _ = self.identify_person(
+                                result = self.identify_person(
                                     cropped_person
                                 )  # Call face recognition pipeline
                                 print("Prediction Result:", result)
-                                if _ != "Unknown":
+                                if result != "Unknown":
                                     tts_engine.speak(
-                                        f"Found {_} with confidence {result}"
+                                        f"Found {result}"
                                     )
                                 else:
                                     tts_engine.speak(
