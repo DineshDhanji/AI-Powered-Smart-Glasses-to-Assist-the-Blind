@@ -6,13 +6,13 @@ from sklearn.preprocessing import StandardScaler
 import pickle
 
 import matplotlib.pyplot as plt
-
+from constants import facial_recog_model_path, facial_recog_feature_scalar
 from logger import logger
 from utils import detect_objects_with_yolo, load_model
 
 
 class Facial_Recognition:
-    def __init__(self, model_path):
+    def __init__(self, model_path=facial_recog_model_path):
         self.model = tf.keras.models.load_model(model_path)
         self.face_cascade = cv2.CascadeClassifier(
             cv2.data.haarcascades + "haarcascade_frontalface_default.xml"
@@ -73,7 +73,7 @@ class Facial_Recognition:
         model = tf.keras.models.load_model("./models/FYP_FR_Model_v1.keras")
 
         try:
-            with open("./models/feature_scaler (1).pkl", "rb") as f:
+            with open(facial_recog_feature_scalar, "rb") as f:
                 scaler = pickle.load(f)
 
             scaled_image = scaler.transform(image.reshape(1, -1)).reshape(1, 46, 46, 1)
@@ -199,9 +199,7 @@ class Facial_Recognition:
                                 )  # Call face recognition pipeline
                                 print("Prediction Result:", result)
                                 if result != "Unknown":
-                                    tts_engine.speak(
-                                        f"Found {result}"
-                                    )
+                                    tts_engine.speak(f"Found {result}")
                                 else:
                                     tts_engine.speak(
                                         "Unknown person detected, please verify."
